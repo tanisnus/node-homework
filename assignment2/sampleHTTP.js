@@ -34,18 +34,37 @@ const server = http.createServer((req, res)=> {
 
      }
      else if (req.method === 'POST' && req.url === '/echo') {
+
+       
         let body = '';
 
         req.on('data', (chunk) => {
             body += chunk;
         });
 
+      
+       
+       
         req.on('end', () => {
-            const ParseBody = JSON.parse(body);
-            res.writeHead(200, {'Content-Type': 'application/json'});
-            res.end(JSON.stringify({weReceived: ParseBody}))
+            try{
+                const ParseBody = JSON.parse(body);
+                res.writeHead(200, {'Content-Type': 'application/json'});
+                res.end(JSON.stringify({weReceived: ParseBody}))
+
+            } catch (error) {
+                res.writeHead(400, {'Content-Type': 'application/json'});
+                res.end(JSON.stringify({ message: 'Invalid JSON.' }))
+            }
+           
         });
 
+
+     
+
+     }
+     else {
+        res.writeHead(404, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify({'message':  "That route is not available."}));
      }
 })
 
