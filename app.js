@@ -12,7 +12,7 @@ global.tasks = []
 
 app.use(express.json());
 app.use("/api", timeRouter);
-app.use("/api", userRouter)
+app.use("/api/users", userRouter);
 
 app.get("/", (req,res) => {
     res.send("Hello, World!");
