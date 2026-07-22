@@ -8,20 +8,21 @@ const errorHandler = require('./middleware/error-handler');
 
 global.user_id = null;
 global.users = [];
-global.tasks = []
+global.tasks = [];
 
 app.use(express.json());
+
 app.use("/api", timeRouter);
 app.use("/api/users", userRouter);
 
-app.get("/", (req,res) => {
-    res.send("Hello, World!");
+app.get("/", (req, res) => {
+  res.send("Hello, World!");
 });
 
-app.post("/testpost", (req,res) => {
-    res.status(200).json({
-        message: "POST route works",
-    });
+app.post("/testpost", (req, res) => {
+  res.status(200).json({
+    message: "POST route works",
+  });
 });
 
 app.use(notFound);
