@@ -1,15 +1,54 @@
 const express = require("express");
 const dogsRouter = require("./routes/dogs");
+const path = require("path");
+const {randomUUID} = require("crypto");
 
 const app = express();
 
+app.use((req,res,next)=> {
+  req.requestId = randomUUID();
+  res.setHeader("X-Request-Id", req.requestId);
+  next();
+})
+
+
+app.use((req,res,next)=> {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}]: ${req.method} ${req.path} (${req.requestId})`);
+  next();
+})
+
 // Assignment 3b and 3c ask you to add middleware in this file.
-
-
+app.use(express.json());
+app.use("/images", express.static(path.join(__dirname, "public/images")));
 
 
 app.use("/", dogsRouter);// Do not remove this line
 
+app.use((req, res)=> {
+  res.status(404).json({
+    error: "Route not found",
+    requestId: req.requestId
+  })
+})
+
+app.use((err, req, res, next) => {
+  const statusCode = err.statusCode || 500;
+
+  if (statusCode >= 400 && statusCode < 500) {
+    console.warn(`WARN: ${err.name} - ${err.message}`);
+  } else {
+    console.error(`ERROR: ${err.name} - ${err.message}`);
+  }
+
+  const errorMessage =
+    statusCode === 500 ? "Internal Server Error" : err.message;
+
+  res.status(statusCode).json({
+    error: errorMessage,
+    requestId: req.requestId,
+  });
+});
 
 if (require.main === module) {
   app.listen(3000, () => {
