@@ -1,6 +1,9 @@
 const express = require('express');
 const app = express();
 
+const authMiddleware = require("./middleware/auth");
+const taskRouter = require("./routes/taskRoutes");
+
 const timeRouter = require('./routes/timeRoutes');
 const userRouter = require('./routes/userRoutes');
 const notFound = require('./middleware/not-found');
@@ -14,6 +17,9 @@ app.use(express.json());
 
 app.use("/api", timeRouter);
 app.use("/api/users", userRouter);
+//asignment 4
+app.use("/api/tasks", authMiddleware, taskRouter);
+//
 
 app.get("/", (req, res) => {
   res.send("Hello, World!");
@@ -27,6 +33,9 @@ app.post("/testpost", (req, res) => {
 
 app.use(notFound);
 app.use(errorHandler);
+
+
+
 
 
 
