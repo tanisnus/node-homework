@@ -56,6 +56,12 @@ const update = async (req, res) => {
 
     if (error) return res.status(400).json({message: error.message});
 
+    const taskId = parseInt(req.params?.id);
+
+    if (isNaN(taskId)) {
+        return res.status(400).json({message: 'Invalid task id'});
+    }
+
     const taskChange = value;
     let keys = Object.keys(taskChange);
     keys = keys.map((key) => (key === "isCompleted" ? "is_completed" : key));
@@ -64,7 +70,7 @@ const update = async (req, res) => {
     const userParm = `$${keys.length + 2}`;
     const updatedTask = await pool.query(
         `UPDATE tasks SET ${setClauses} WHERE id = ${idParm} AND user_id = ${userParm} RETURNING id, title, is_completed`,
-        [...Object.values(taskChange), req.params.id, global.user_id],
+        [...Object.values(taskChange), taskId, global.user_id],
     );
 
     if (updatedTask.rows.length === 0) {

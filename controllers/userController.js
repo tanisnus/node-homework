@@ -43,7 +43,7 @@ async function register(req, res, next) {
     );
   } catch (e) {
     if (e.code === "23505") {
-      return res.status(400).json({ error: "Email already registered" });
+      return res.status(400).json({ message: "Email already registered" });
     }
     return next(e);
   }
