@@ -1,7 +1,8 @@
-const {userSchema} = require("../validation/userSchema");
+const { userSchema } = require("../validation/userSchema");
 const crypto = require("crypto");
 const util = require("util");
 const scrypt = util.promisify(crypto.scrypt);
+const pool = require("../db/pg-pool");
 
 
 async function hashPassword(password) {
@@ -18,27 +19,37 @@ async function comparePasswords(inputPassword, storeHash) {
 }
 
 
-async function register(req, res) {
-
-  // Validation
-
+async function register(req, res, next) {
   if (!req.body) {
     req.body = {};
   }
 
-  const { error, value} = userSchema.validate(req.body, { abortEarly: false});
+  const { error, value } = userSchema.validate(req.body, { abortEarly: false });
+  if (error) {
+    return res.status(400).json({
+      message: "Validation failed",
+      details: error.details,
+    });
+  }
 
-  if (error) return res.status(400).json({message: error.message});
- 
+  value.hashed_password = await hashPassword(value.password);
 
-  const hashedPassword = await hashPassword(value.password);
+  let user = null;
+  try {
+    user = await pool.query(
+      `INSERT INTO users (email, name, hashed_password)
+       VALUES ($1, $2, $3) RETURNING id, email, name`,
+      [value.email, value.name, value.hashed_password],
+    );
+  } catch (e) {
+    if (e.code === "23505") {
+      return res.status(400).json({ message: "Email already registered" });
+    }
+    return next(e);
+  }
 
-  const newUser = { email: value.email, name: value.name, hashedPassword };
-
-  global.users.push(newUser);
-  global.user_id = newUser;
-
-  res.status(201).json({ name: value.name, email: value.email });
+  global.user_id = user.rows[0].id;
+  res.status(201).json({ name: user.rows[0].name, email: user.rows[0].email });
 }
 
 
@@ -47,24 +58,23 @@ async function register(req, res) {
 async function logon(req, res) {
   const { email, password } = req.body;
 
+  const result = await pool.query("SELECT * FROM users WHERE email = $1", [
+    email,
+  ]);
 
-  const user = global.users.find((u) => u.email === email);
-
-  if (!user) {
+  if (result.rows.length === 0) {
     res.status(401).json({ error: "No user found" });
     return;
   }
 
-
-  const goodCredentials = user && await comparePasswords(password, user.hashedPassword)
+  const user = result.rows[0];
+  const goodCredentials = await comparePasswords(password, user.hashed_password);
 
   if (!goodCredentials) {
-    return res.status(401).json({error: "Invalid Password"});
+    return res.status(401).json({ error: "Invalid Password" });
   }
 
-
-
-  global.user_id = user;
+  global.user_id = user.id;
   res.status(200).json({ name: user.name, email: user.email });
 }
 
