@@ -2,7 +2,7 @@ const { userSchema } = require("../validation/userSchema");
 const crypto = require("crypto");
 const util = require("util");
 const scrypt = util.promisify(crypto.scrypt);
-const pool = require("../db/pg-pool");
+const prisma = require("../db/prisma");
 
 
 async function hashPassword(password) {
@@ -32,43 +32,43 @@ async function register(req, res, next) {
     });
   }
 
-  value.hashed_password = await hashPassword(value.password);
+  value.hashedPassword = await hashPassword(value.password);
+  delete value.password;
+
+  const { name, email, hashedPassword } = value;
 
   let user = null;
   try {
-    user = await pool.query(
-      `INSERT INTO users (email, name, hashed_password)
-       VALUES ($1, $2, $3) RETURNING id, email, name`,
-      [value.email, value.name, value.hashed_password],
-    );
-  } catch (e) {
-    if (e.code === "23505") {
+    user = await prisma.user.create({
+      data: { name, email, hashedPassword },
+      select: { name: true, email: true, id: true },
+    });
+  } catch (err) {
+    if (err.name === "PrismaClientKnownRequestError" && err.code === "P2002") {
       return res.status(400).json({ message: "Email already registered" });
     }
-    return next(e);
+    return next(err);
   }
 
-  global.user_id = user.rows[0].id;
-  res.status(201).json({ name: user.rows[0].name, email: user.rows[0].email });
+  global.user_id = user.id;
+  res.status(201).json({ name: user.name, email: user.email });
 }
 
 
 
 
 async function logon(req, res) {
-  const { email, password } = req.body;
+  let { email, password } = req.body;
+  email = email.toLowerCase();
 
-  const result = await pool.query("SELECT * FROM users WHERE email = $1", [
-    email,
-  ]);
+  const user = await prisma.user.findUnique({ where: { email } });
 
-  if (result.rows.length === 0) {
+  if (!user) {
     res.status(401).json({ error: "No user found" });
     return;
   }
 
-  const user = result.rows[0];
-  const goodCredentials = await comparePasswords(password, user.hashed_password);
+  const goodCredentials = await comparePasswords(password, user.hashedPassword);
 
   if (!goodCredentials) {
     return res.status(401).json({ error: "Invalid Password" });
