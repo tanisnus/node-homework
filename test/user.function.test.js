@@ -4,6 +4,7 @@ process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
 const prisma = require("../db/prisma");
 let agent;
 let saveRes;
+let logonRes;
 const { app, server } = require("../app");
 
 beforeAll(async () => {
@@ -43,8 +44,11 @@ describe("register a user ", () => {
       email: "jdeere@example.com",
       password: "Pa$$word20",
     };
-    saveRes = await agent.post("/api/users/logon").send(logonObj);
-    expect(saveRes.status).toBe(200);
+    logonRes = await agent.post("/api/users/logon").send(logonObj);
+    saveRes = logonRes;
+    expect(logonRes.headers["set-cookie"]).toEqual(
+      expect.arrayContaining([expect.stringContaining("jwt=")]),
+    );
   });
 
   it("50. Verify that you are logged in: /api/tasks should not return a 401", async () => {
@@ -53,11 +57,10 @@ describe("register a user ", () => {
   });
 
   it("51. Verify that you can log out.", async () => {
-    const token = saveRes.body.csrfToken;
-    expect(token).toBeDefined();
+    const csrfTokenFromLogonSession = logonRes.body.csrfToken;
     saveRes = await agent
       .post("/api/users/logoff")
-      .set("X-CSRF-TOKEN", token)
+      .set("X-CSRF-TOKEN", csrfTokenFromLogonSession)
       .send();
     expect(saveRes.status).toBe(200);
   });

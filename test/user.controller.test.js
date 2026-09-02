@@ -116,7 +116,7 @@ describe("testing logon, register, and logoff", () => {
 });
 
 describe("Testing JWT middleware", () => {
-  it("43. jwtMiddleware Returns a 401 if the JWT cookie is not present in the req.", async () => {
+  it("61. jwtMiddleware Returns a 401 if the JWT cookie is not present in the req.", async () => {
     const req = httpMocks.createRequest({
       method: "POST",
     });
@@ -125,7 +125,7 @@ describe("Testing JWT middleware", () => {
     expect(saveRes.statusCode).toBe(401);
   });
 
-  it("44. Returns a 401 if the JWT is invalid", async () => {
+  it("62. Returns a 401 if the JWT is invalid", async () => {
     const req = httpMocks.createRequest({
       method: "POST",
     });
@@ -140,7 +140,7 @@ describe("Testing JWT middleware", () => {
     expect(saveRes.statusCode).toBe(401);
   });
 
-  it("45. Returns a 401 if the JWT is valid but the CSRF token isn't.", async () => {
+  it("63. Returns a 401 if the JWT is valid but the CSRF token isn't.", async () => {
     const req = httpMocks.createRequest({
       method: "POST",
     });
@@ -159,7 +159,7 @@ describe("Testing JWT middleware", () => {
     expect(saveRes.statusCode).toBe(401);
   });
 
-  it("46. Calls next() if both the token and the jwt are good.", async () => {
+  it("64. Calls next() if both the token and the jwt are good.", async () => {
     const req = httpMocks.createRequest({
       method: "POST",
     });
@@ -183,7 +183,7 @@ describe("Testing JWT middleware", () => {
     expect(next).toHaveBeenCalled();
   });
 
-  it("47. If both the token and the jwt are good, req.user.id has the appropriate value.", () => {
+  it("65. If both the token and the jwt are good, req.user.id has the appropriate value.", () => {
     expect(saveReq.user.id).toBe(5);
   });
 });

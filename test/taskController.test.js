@@ -79,7 +79,7 @@ describe("testing task creation", () => {
     });
     req.user = { id: user1.id };
     saveRes = httpMocks.createResponse({ eventEmitter: EventEmitter });
-    await create(req, saveRes);
+    await waitForRouteHandlerCompletion(create, req, saveRes);
     expect(saveRes.statusCode).toBe(201);
   });
 
