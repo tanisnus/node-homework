@@ -46,9 +46,12 @@ async function register(req, res, next) {
     req.body = {};
   }
 
+  // Always strip the token before Joi validation (schema only allows name/email/password)
+  const token = req.body.recaptchaToken;
+  delete req.body.recaptchaToken;
+
   let isPerson = false;
-  if (req.body.recaptchaToken) {
-    const token = req.body.recaptchaToken;
+  if (token) {
     const params = new URLSearchParams();
     params.append("secret", process.env.RECAPTCHA_SECRET);
     params.append("response", token);
@@ -66,7 +69,6 @@ async function register(req, res, next) {
     );
     const data = await response.json();
     if (data.success) isPerson = true;
-    delete req.body.recaptchaToken;
   } else if (
     process.env.RECAPTCHA_BYPASS &&
     req.get("X-Recaptcha-Test") === process.env.RECAPTCHA_BYPASS
@@ -80,7 +82,10 @@ async function register(req, res, next) {
       .json({ message: "Bot verification failed. Please complete the reCAPTCHA." });
   }
 
-  const { error, value } = userSchema.validate(req.body, { abortEarly: false });
+  const { error, value } = userSchema.validate(req.body, {
+    abortEarly: false,
+    stripUnknown: true,
+  });
   if (error) {
     return res.status(400).json({
       message: "Validation failed",
