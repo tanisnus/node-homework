@@ -4,10 +4,16 @@ const util = require("util");
 const scrypt = util.promisify(crypto.scrypt);
 const prisma = require("../db/prisma");
 const { StatusCodes } = require("http-status-codes");
-
+const { OAuth2Client } = require("google-auth-library");
 
 const { randomUUID } = require("crypto");
 const jwt = require("jsonwebtoken");
+
+const googleClient = new OAuth2Client(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  "postmessage",
+);
 
 const cookieFlags = (req) => {
   return {
@@ -219,9 +225,67 @@ async function show(req, res) {
   res.status(200).json(user);
 }
 
+async function googleLogon(req, res, next) {
+  try {
+    const code = req.body?.code || req.body?.authorizationCode;
+    if (!code) {
+      return res.status(400).json({ message: "Authorization code is required" });
+    }
+
+    const { tokens } = await googleClient.getToken(code);
+    const ticket = await googleClient.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+
+    const email = payload.email?.toLowerCase();
+    let name = payload.name || payload.given_name || "Google User";
+    if (name.length > 30) name = name.slice(0, 30);
+
+    if (!email) {
+      return res
+        .status(400)
+        .json({ message: "Google account email not available" });
+    }
+
+    let user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, name: true },
+    });
+
+    let isNewUser = false;
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email,
+          name,
+          hashedPassword: "oauth-google-placeholder",
+        },
+        select: { id: true, email: true, name: true },
+      });
+      isNewUser = true;
+    }
+
+    const csrfToken = setJwtCookie(req, res, user);
+
+    if (isNewUser) {
+      return res.status(201).json({ user, csrfToken });
+    }
+    return res.status(200).json({
+      name: user.name,
+      email: user.email,
+      csrfToken,
+    });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   register,
   logon,
   logoff,
   show,
+  googleLogon,
 };
