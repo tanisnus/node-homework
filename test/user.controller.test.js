@@ -45,6 +45,7 @@ describe("testing logon, register, and logoff", () => {
       method: "POST",
       body: { name: "Bob", email: "bob@sample.com", password: "Pa$$word20" },
     });
+    req.headers["X-Recaptcha-Test"] = process.env.RECAPTCHA_BYPASS;
     saveRes = MockResponseWithCookies();
     await waitForRouteHandlerCompletion(register, req, saveRes);
     saveData = saveRes._getJSONData();
@@ -109,6 +110,7 @@ describe("testing logon, register, and logoff", () => {
       method: "POST",
       body: { name: "Bob", email: "bob@sample.com", password: "Pa$$word20" },
     });
+    req.headers["X-Recaptcha-Test"] = process.env.RECAPTCHA_BYPASS;
     saveRes = MockResponseWithCookies();
     await waitForRouteHandlerCompletion(register, req, saveRes);
     expect(saveRes.statusCode).toBe(400);

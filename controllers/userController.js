@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const util = require("util");
 const scrypt = util.promisify(crypto.scrypt);
 const prisma = require("../db/prisma");
+const { StatusCodes } = require("http-status-codes");
 
 
 const { randomUUID } = require("crypto");
@@ -45,7 +46,46 @@ async function register(req, res, next) {
     req.body = {};
   }
 
-  const { error, value } = userSchema.validate(req.body, { abortEarly: false });
+  // Always strip the token before Joi validation (schema only allows name/email/password)
+  const token = req.body.recaptchaToken;
+  delete req.body.recaptchaToken;
+
+  let isPerson = false;
+  if (token) {
+    const params = new URLSearchParams();
+    params.append("secret", process.env.RECAPTCHA_SECRET);
+    params.append("response", token);
+    params.append("remoteip", req.ip);
+    const response = await fetch(
+      // might throw an error that would cause a 500 from the error handler
+      "https://www.google.com/recaptcha/api/siteverify",
+      {
+        method: "POST",
+        body: params.toString(),
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      },
+    );
+    const data = await response.json();
+    if (data.success) isPerson = true;
+  } else if (
+    process.env.RECAPTCHA_BYPASS &&
+    req.get("X-Recaptcha-Test") === process.env.RECAPTCHA_BYPASS
+  ) {
+    // might be a test environment
+    isPerson = true;
+  }
+  if (!isPerson) {
+    return res
+      .status(StatusCodes.BAD_REQUEST)
+      .json({ message: "Bot verification failed. Please complete the reCAPTCHA." });
+  }
+
+  const { error, value } = userSchema.validate(req.body, {
+    abortEarly: false,
+    stripUnknown: true,
+  });
   if (error) {
     return res.status(400).json({
       message: "Validation failed",
