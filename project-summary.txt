@@ -1,1 +1,3 @@
 https://node-homework10-tanis.onrender.com/
+
+OAuth Authentication with Google was added as an extra feature to the project.
